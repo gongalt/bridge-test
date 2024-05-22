@@ -2,12 +2,16 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { fetchUserDataFromApi } from '../api/api';
 
 export const fetchUserData = createAsyncThunk(
-    'user/fetchUserData',
-    async (page, thunkAPI) => {
-      const response = await fetchUserDataFromApi(page + 1, 10);
+  'user/fetchUserData',
+  async (page, thunkAPI) => {
+    try {
+      const response = await fetchUserDataFromApi(page + 1, 15);
       return response;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.message);
     }
-  );
+  }
+);
 
 const userSlice = createSlice({
   name: 'user',

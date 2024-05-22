@@ -4,12 +4,13 @@ import {
 	getCoreRowModel,
 	getPaginationRowModel,
 	getSortedRowModel,
-	flexRender,
 	createColumnHelper,
 } from '@tanstack/react-table';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchPokemon, setPokemonPage } from '../redux/pokemonDataSlice';
 import { fetchUserData, setUserPage } from '../redux/userSlice';
+import Pagination from './Pagination';
+import ReusableTable from './ReusableTable';
 
 const PaginationTable = () => {
 	const dispatch = useDispatch();
@@ -30,21 +31,32 @@ const PaginationTable = () => {
 		dispatch(fetchUserData(userPage));
 	}, [dispatch, pokemonPage, userPage]);
 
-    const flattenedPokemonData = useMemo(() => {
-        return pokemonData.map(pokemon => {
-          return pokemon.abilities.map(ability => ({
-            name: pokemon.name,
-            url: pokemon.url,
-            abilityName: ability.ability.name,
-            abilityUrl: ability.ability.url,
-            isHidden: ability.is_hidden,
-            slot: ability.slot
-          }));
-        }).flat();
-      }, [pokemonData]);
+	const flattenedPokemonData = useMemo(() => {
+		return pokemonData
+			.map((pokemon) => {
+				return pokemon.abilities.map((ability) => ({
+					name: pokemon.name,
+					url: pokemon.url,
+					abilityName: ability.ability.name,
+					abilityUrl: ability.ability.url,
+					isHidden: ability.is_hidden,
+					slot: ability.slot,
+				}));
+			})
+			.flat();
+	}, [pokemonData]);
 
+	const useTableInstance = (columns, data) => {
+		return useReactTable({
+			columns,
+			data,
+			getCoreRowModel: getCoreRowModel(),
+			getPaginationRowModel: getPaginationRowModel(),
+			getSortedRowModel: getSortedRowModel(),
+		});
+	};
 
-	const pokemonColumns = React.useMemo(
+	const pokemonColumns = useMemo(
 		() => [
 			columnHelper.accessor('name', {
 				id: 'name',
@@ -55,22 +67,22 @@ const PaginationTable = () => {
 				header: 'URL',
 			}),
 			columnHelper.accessor('abilityName', {
-                id: 'abilityName',
-                header: 'Ability Name',
-              }),
-              columnHelper.accessor('abilityUrl', {
-                id: 'abilityUrl',
-                header: 'Ability URL',
-              }),
-              columnHelper.accessor('isHidden', {
-                id: 'isHidden',
-                header: 'Is Hidden',
-                cell: info => info.getValue().toString(),
-              }),
+				id: 'abilityName',
+				header: 'Ability Name',
+			}),
+			columnHelper.accessor('abilityUrl', {
+				id: 'abilityUrl',
+				header: 'Ability URL',
+			}),
+			columnHelper.accessor('isHidden', {
+				id: 'isHidden',
+				header: 'Is Hidden',
+				cell: (info) => info.getValue().toString(),
+			}),
 		],
-		[]
+		[columnHelper]
 	);
-	const userColumns = React.useMemo(
+	const userColumns = useMemo(
 		() => [
 			columnHelper.accessor('id', {
 				id: 'id',
@@ -94,135 +106,42 @@ const PaginationTable = () => {
 				cell: (url) => <img src={url.getValue()} alt="Avatar" className="" />,
 			}),
 		],
-		[]
+		[columnHelper]
 	);
 
-	const pokemonTableInstance = useReactTable({
-		columns: pokemonColumns,
-		data: flattenedPokemonData,
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		initialState: { pageIndex: pokemonPage },
-		manualPagination: true,
-		pageCount: 100,
-	});
+	const pokemonTableInstance = useTableInstance(
+		pokemonColumns,
+		flattenedPokemonData
+	);
+	const userTableInstance = useTableInstance(userColumns, userData);
 
-	console.log('pokemonTableInstance', pokemonTableInstance);
-
-	const userTableInstance = useReactTable({
-		columns: userColumns,
-		data: userData,
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		initialState: { pageIndex: userPage },
-		manualPagination: true,
-		pageCount: 100,
-	});
-
-	console.log('userTableInstance', userTableInstance);
-
-	if (!pokemonTableInstance.state) {
-		pokemonTableInstance.state = { pageIndex: 0 };
-	}
-
-	if (!userTableInstance.state) {
-		userTableInstance.state = { pageIndex: 0 };
-	}
-
-	const renderTable = (tableInstance, setPage) => {
-		const {
-			getCanPreviousPage,
-			getCanNextPage,
-			nextPage,
-			previousPage,
-			state: { pageIndex, pagination },
-		} = tableInstance;
-
-		const pageSize = pagination ? pagination.pageSize : 10;
-
+	const renderTable = (tableInstance, setPage, status) => {
 		return (
-			<div>
-				<table>
-					<thead>
-						{tableInstance.getHeaderGroups().map((headerGroup) => {
-							return (
-								<tr key={headerGroup.id}>
-									{headerGroup.headers.map((header) => {
-										return (
-											<th id={header.id}>
-												{' '}
-												{header.isPlaceholder
-													? null
-													: flexRender(
-															header.column.columnDef.header,
-															header.getContext()
-													  )}
-											</th>
-										);
-									})}
-								</tr>
-							);
-						})}
-					</thead>
-					<tbody>
-						{tableInstance.getRowModel().rows.map((row) => {
-							return (
-								<tr key={row.id}>
-									{row.getVisibleCells().map((cell) => {
-										return (
-											<td key={cell.id}>
-												{flexRender(
-													cell.column.columnDef.cell,
-													cell.getContext()
-												)}
-											</td>
-										);
-									})}
-								</tr>
-							);
-						})}
-					</tbody>
-				</table>
-				<div>
-					<button
-						onClick={() => previousPage()}
-						disabled={!getCanPreviousPage()}
-					>
-						Previous
-					</button>
-					<button onClick={() => nextPage()} disabled={!getCanNextPage()}>
-						Next
-					</button>
-					<span>
-						Page <strong>{pageIndex + 1}</strong>{' '}
-					</span>
-					<span>
-						| Go to page:{' '}
-						<input
-							type="number"
-							defaultValue={pageIndex + 1}
-							onChange={(e) => {
-								const page = e.target.value ? Number(e.target.value) - 1 : 0;
-								tableInstance.gotoPage(page);
-								dispatch(setPage(page));
-							}}
-							style={{ width: '100px' }}
-						/>
-					</span>
-					<span>| Page size: {pageSize}</span>
-				</div>
+			<div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+				{status === 'loading' ? (
+					<div className="text-blue-500 text-lg font-semibold">Loading...</div>
+				) : status === 'failed' ? (
+					<div className="text-red-500 text-lg font-semibold">
+						No items to show
+					</div>
+				) : (
+					<>
+						<ReusableTable tableInstance={tableInstance} />
+						<div className="mt-4">
+							<Pagination tableInstance={tableInstance} setPage={setPage} />
+						</div>
+					</>
+				)}
 			</div>
 		);
 	};
 
 	return (
-		<div>
-			<h2>Pokemon Data</h2>
-			{renderTable(pokemonTableInstance, setPokemonPage)}
-			<h2>User Data</h2>
-			{renderTable(userTableInstance, setUserPage)}
+		<div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+			<h2 className="text-2xl font-bold mb-4">Pokemon Data</h2>
+			{renderTable(pokemonTableInstance, setPokemonPage, pokemonStatus)}
+			<h2 className="text-2xl font-bold mt-8 mb-4">User Data</h2>
+			{renderTable(userTableInstance, setUserPage, userStatus)}
 		</div>
 	);
 };

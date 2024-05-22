@@ -2,19 +2,22 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { fetchPokemonData, fetchPokemonDataContent } from '../api/api';
 
 export const fetchPokemon = createAsyncThunk(
-	'pokemonData/fetchPokemon',
-	async (page, thunkAPI) => {
-		const response = await fetchPokemonData(page, 10);
-		const contents = await Promise.all(
-			response.results.map((res) => fetchPokemonDataContent(res.url, 10))
-		);
-		response.results = response.results.map((result, index) => ({
-			...result,
-			...contents[index],
-		}));
-		console.log('response', response);
-		return response;
-	}
+  'pokemonData/fetchPokemon',
+  async (page, thunkAPI) => {
+    try {
+      const response = await fetchPokemonData(page, 10);
+      const contents = await Promise.all(
+        response.results.map((res) => fetchPokemonDataContent(res.url, 10))
+      );
+      response.results = response.results.map((result, index) => ({
+        ...result,
+        ...contents[index],
+      }));
+      return response;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.message);
+    }
+  }
 );
 
 const pokemonDataSlice = createSlice({
